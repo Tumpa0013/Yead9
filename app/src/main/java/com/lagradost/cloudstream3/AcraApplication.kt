@@ -11,6 +11,7 @@ import androidx.fragment.app.FragmentActivity
 import com.lagradost.cloudstream3.mvvm.normalSafeApiCall
 import com.lagradost.cloudstream3.mvvm.suspendSafeApiCall
 import com.lagradost.cloudstream3.plugins.PluginManager
+import com.lagradost.cloudstream3.ui.settings.SettingsFragment
 import com.lagradost.cloudstream3.ui.settings.SettingsFragment.Companion.isTvSettings
 import com.lagradost.cloudstream3.utils.AppUtils.openBrowser
 import com.lagradost.cloudstream3.utils.Coroutines.runOnMainThread
@@ -37,11 +38,17 @@ import kotlin.concurrent.thread
 import kotlin.system.exitProcess
 
 class CustomReportSender : ReportSender {
-    // Sends all your crashes to google forms
+    // Sends crash logs to Google forms, Might give a false positive of having a Google Tracker in App Scans
     override fun send(context: Context, errorContent: CrashReportData) {
-        println("Sending report")
-        val url =
-            "https://docs.google.com/forms/d/e/1FAIpQLSfO4r353BJ79TTY_-t5KWSIJT2xfqcQWY81xjAA1-1N0U2eSg/formResponse"
+
+        println("Sending Crash Report")
+
+        val url = if (SettingsFragment.isTrueTvSettings()) {
+            "FORM_URL_FOR_TVs"
+        } else {
+            "FORM_URL_FOR_PHONES"
+        }
+
         val data = mapOf(
             "entry.1993829403" to errorContent.toJSON()
         )
@@ -97,14 +104,13 @@ class ExceptionHandler(val errorFile: File, val onError: (() -> Unit)) :
         }
         exitProcess(1)
     }
-
 }
 
 class AcraApplication : Application() {
 
     override fun onCreate() {
         super.onCreate()
-        //NativeCrashHandler.initCrashHandler()
+        // NativeCrashHandler.initCrashHandler()
         ExceptionHandler(filesDir.resolve("last_error")) {
             val intent = context!!.packageManager.getLaunchIntentForPackage(context!!.packageName)
             startActivity(Intent.makeRestartActivityTask(intent!!.component))
@@ -119,7 +125,7 @@ class AcraApplication : Application() {
         context = base
 
         initAcra {
-            //core configuration:
+            // core configuration:
             buildConfigClass = BuildConfig::class.java
             reportFormat = StringFormat.JSON
 
@@ -128,13 +134,6 @@ class AcraApplication : Application() {
                 ReportField.ANDROID_VERSION, ReportField.PHONE_MODEL,
                 ReportField.STACK_TRACE,
             )
-
-            // removed this due to bug when starting the app, moved it to when it actually crashes
-            //each plugin you chose above can be configured in a block like this:
-            /*toast {
-                text = getString(R.string.acra_report_toast)
-                //opening this block automatically enables the plugin.
-            }*/
         }
     }
 
